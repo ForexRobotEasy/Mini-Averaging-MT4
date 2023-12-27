@@ -1,0 +1,111 @@
+
+// Program: Mini Averaging MT4
+// Developer's Site: forexroboteasy.com
+// Developer: Forex Robot Easy Team
+
+// Include necessary libraries
+#include <Trade\Trade.mqh>
+#include <MovingAverages\MovingAverages.mqh>
+#include <Indicators\MFI\MFI.mqh>
+#include <Indicators\MACD\MACD.mqh>
+
+// Define constants
+#define SYMBOL 'EURUSD'
+#define LOTS 0.01
+#define STOP_LOSS 50
+#define TAKE_PROFIT 100
+#define SUPER_AVERAGING false
+
+// Initialize objects
+CTrade trade;
+CMovingAverages ma;
+CMFI mfi;
+CMACD macd;
+
+// Custom strategy settings
+double fastMA = 12;
+double slowMA = 26;
+double mfiLevel = 50;
+
+// Declare global variables
+double previousMaValue = 0;
+bool isPositionOpen = false;
+
+// Custom function to open positions
+void OpenPosition(int type)
+{
+   if (type == TRADE_ACTION_BUY && !isPositionOpen)
+   {
+      trade.Buy(LOTS);
+      isPositionOpen = true;
+   }
+   else if (type == TRADE_ACTION_SELL && !isPositionOpen)
+   {
+      trade.Sell(LOTS);
+      isPositionOpen = true;
+   }
+}
+
+// Custom function to close positions
+void ClosePosition()
+{
+   if (isPositionOpen)
+   {
+      trade.Close();
+      isPositionOpen = false;
+   }
+}
+
+// Custom function to check indicator conditions and open positions
+void CheckIndicators()
+{
+   double maValue = ma.iMA(SYMBOL, PERIOD_CURRENT, fastMA, 0, MODE_SMA, PRICE_CLOSE, 0);
+   double mfiValue = mfi.iMFI(SYMBOL, PERIOD_CURRENT, 14, PRICE_CLOSE, 0);
+   double macdValue = macd.iMACD(SYMBOL, PERIOD_CURRENT, 12, 26, 9, PRICE_CLOSE, MODE_MAIN, 0);
+
+   if (maValue > previousMaValue && mfiValue > mfiLevel && macdValue > 0)
+   {
+      OpenPosition(TRADE_ACTION_BUY);
+   }
+   else if (maValue < previousMaValue && mfiValue < mfiLevel && macdValue < 0)
+   {
+      OpenPosition(TRADE_ACTION_SELL);
+   }
+   else if (SUPER_AVERAGING)
+   {
+      // Implement grid and martingale system for Super Averaging strategy
+      // code omitted for brevity
+   }
+
+   previousMaValue = maValue;
+}
+
+void OnTick()
+{
+   CheckIndicators();
+}
+
+int OnInit()
+{
+   trade.SetDeviationInPoints(10);
+   trade.SetStopLoss(STOP_LOSS);
+   trade.SetTakeProfit(TAKE_PROFIT);
+   trade.SetTypeFilling(ORDER_FILLING_IOC);
+
+   return(INIT_SUCCEEDED);
+}
+
+void OnDeinit(const int reason)
+{
+   ClosePosition();
+}
+
+void OnStart()
+{
+   // Main program loop
+   while (!IsStopped())
+   {
+      OnTick();
+      Sleep(1000);
+   }
+}
